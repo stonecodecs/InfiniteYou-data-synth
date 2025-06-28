@@ -8,7 +8,8 @@
 [**Zichuan Liu**](https://scholar.google.com/citations?user=-H18WY8AAAAJ)&nbsp;&nbsp;&nbsp;&nbsp;
 [**Hao Kang**](https://scholar.google.com/citations?user=VeTCSyEAAAAJ)&nbsp;&nbsp;&nbsp;&nbsp;
 [**Xin Lu**](https://scholar.google.com/citations?user=mFC0wp8AAAAJ)<br />
-ByteDance Intelligent Creation
+ByteDance Intelligent Creation<br />
+**ICCV 2025**
 
 <a href="https://bytedance.github.io/InfiniteYou"><img src="https://img.shields.io/static/v1?label=Project&message=Page&color=blue&logo=github-pages"></a> &ensp;
 <a href="https://arxiv.org/abs/2503.16418"><img src="https://img.shields.io/static/v1?label=ArXiv&message=Paper&color=darkred&logo=arxiv"></a> &ensp;
@@ -24,6 +25,8 @@ ByteDance Intelligent Creation
 
 
 ## 🔥 News
+
+- [06/2025] 🔥 The [paper](https://arxiv.org/abs/2503.16418) of InfiniteYou is accepted to ICCV 2025.
 
 - [04/2025] 🔥 The official [ComfyUI node](https://github.com/bytedance/ComfyUI_InfiniteYou) is released. Unofficial [ComfyUI contributions](https://github.com/bytedance/InfiniteYou#comfyui-nodes) are appreciated.
 
@@ -175,11 +178,10 @@ We sincerely acknowledge the insightful discussions from Stathi Fotiadis, Min Ji
 If you find InfiniteYou useful for your research or applications, please cite our paper:
 
 ```bibtex
-@article{jiang2025infiniteyou,
+@inproceedings{jiang2025infiniteyou,
   title={{InfiniteYou}: Flexible Photo Recrafting While Preserving Your Identity},
   author={Jiang, Liming and Yan, Qing and Jia, Yumin and Liu, Zichuan and Kang, Hao and Lu, Xin},
-  journal={arXiv preprint},
-  volume={arXiv:2503.16418},
+  booktitle={ICCV},
   year={2025}
 }
 ```

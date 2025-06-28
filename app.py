@@ -168,7 +168,7 @@ with gr.Blocks() as demo:
     gr.HTML("""
     <div style="text-align: center; max-width: 900px; margin: 0 auto;">
         <h1 style="font-size: 1.5rem; font-weight: 700; display: block;">InfiniteYou-FLUX</h1>
-        <h2 style="font-size: 1.2rem; font-weight: 300; margin-bottom: 1rem; display: block;">Official Gradio Demo for <a href="https://arxiv.org/abs/2503.16418">InfiniteYou: Flexible Photo Recrafting While Preserving Your Identity</a></h2>
+        <h2 style="font-size: 1.2rem; font-weight: 300; margin-bottom: 1rem; display: block;">Official Gradio Demo for <a href="https://arxiv.org/abs/2503.16418">InfiniteYou: Flexible Photo Recrafting While Preserving Your Identity</a> (<b>ICCV 2025</b>)</h2>
         <a href="https://bytedance.github.io/InfiniteYou">[Project Page]</a>&ensp;
         <a href="https://arxiv.org/abs/2503.16418">[Paper]</a>&ensp;
         <a href="https://github.com/bytedance/InfiniteYou">[Code]</a>&ensp;
@@ -289,11 +289,10 @@ with gr.Blocks() as demo:
         If you find InfiniteYou useful for your research or applications, please cite our paper:
 
         ```bibtex
-        @article{jiang2025infiniteyou,
+        @inproceedings{jiang2025infiniteyou,
           title={{InfiniteYou}: Flexible Photo Recrafting While Preserving Your Identity},
           author={Jiang, Liming and Yan, Qing and Jia, Yumin and Liu, Zichuan and Kang, Hao and Lu, Xin},
-          journal={arXiv preprint},
-          volume={arXiv:2503.16418},
+          booktitle={ICCV},
           year={2025}
         }
         ```
