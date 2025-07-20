@@ -30,20 +30,21 @@ from pipelines.pipeline_infu_flux import InfUFluxPipeline
 def get_pod_index():
     """Get the pod index from environment variables."""
     # Try different ways to get pod index
-    hostname = os.environ.get('HOSTNAME', '')
+    # hostname = os.environ.get('HOSTNAME', '')
+    return int(os.environ.get('JOB_COMPLETION_INDEX', 0))
     
-    # Extract index from hostname (e.g., "infgen-abc123" -> 0)
-    if 'infgen' in hostname:
-        # For Kubernetes jobs, hostname format is typically job-name-randomstring
-        # We'll use the last part to determine index
-        parts = hostname.split('-')
-        if len(parts) >= 3:
-            # Use hash of the random part to get consistent index
-            random_part = parts[-1]
-            return hash(random_part) % int(os.environ.get('JOB_PARALLELISM', 1))
+    # # Extract index from hostname (e.g., "infgen-abc123" -> 0)
+    # if 'infgen' in hostname:
+    #     # For Kubernetes jobs, hostname format is typically job-name-randomstring
+    #     # We'll use the last part to determine index
+    #     parts = hostname.split('-')
+    #     if len(parts) >= 3:
+    #         # Use hash of the random part to get consistent index
+    #         random_part = parts[-1]
+    #         return hash(random_part) % int(os.environ.get('JOB_PARALLELISM', 1))
     
-    # Fallback: use HOSTNAME hash
-    return hash(hostname) % int(os.environ.get('JOB_PARALLELISM', 1))
+    # # Fallback: use HOSTNAME hash
+    # return hash(hostname) % int(os.environ.get('JOB_PARALLELISM', 1))
 
 def get_assigned_subjects(root_dir, pod_index, total_pods):
     """Get the list of subjects assigned to this pod based on index."""
@@ -94,10 +95,12 @@ def get_representative_image(subject_dir, front_camera='CC32871A059'):
             index = 5
             filename = f"{index:04d}_img.jpg"
             img_path = os.path.join(front_camera_dir, filename)
-            while not os.path.exists(img_path):
+            while not os.path.exists(img_path): # ! hack, but avoids infinite loop
                 index += 5
                 filename = f"{index:04d}_img.jpg"
                 img_path = os.path.join(front_camera_dir, filename)
+                if index > 50: # if not found in first 10 images, this directory is probably empty.
+                    raise ValueError(f"No image found for {subject_dir}. Tried for 10 indices.")
             return img_path
         except Exception as e:
             print(f"Error listing directory {front_camera_dir}: {e}")
@@ -123,7 +126,7 @@ def init_prompt_sampler(prompt_file):
         raise FileNotFoundError(f"Prompt file {prompt_file} not found")
     return PromptSampler(prompt_file)
 
-def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, **kwargs):
+def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=1,**kwargs):
     """Process a subject directory."""
     # NOTE: because InfiniteYou expects faces, we will be using the most front-facing image.
     #       This refers to the first image of camera CC32871A059.
@@ -134,6 +137,7 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
     #     process_single_image(pipe, image_file, prompt_sampler, **kwargs)
 
     seed = kwargs.get('seed', 0)
+    step_size = kwargs.get('step_size', 1)
     try: 
         image_path = get_representative_image(subject_dir)
     except Exception as e:
@@ -141,7 +145,8 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
         return
 
     # get number of images within image_path (camera)
-    num_timesteps = len(os.listdir(os.path.dirname(image_path)))
+    # not sure if this guarantees timestep order, but actually might not matter.
+    num_timesteps = len(os.listdir(os.path.dirname(image_path))) // step_size
     num_generations = num_samples * num_timesteps
     
     # get prompts
@@ -157,8 +162,11 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
         if len(files) > 0:
             highest_number = max([int(f.split('_')[0]) for f in files if f.endswith('.png')])
             new_number = highest_number + 1
-            print(f"Starting image IDs from: {new_number}")
-            num_samples = kwargs.get('num_samples', 1) - new_number # ! HACK to get constant samples per subject
+            num_generations = num_generations - new_number # ! HACK to get constant samples per subject
+            if num_generations <= 0:
+                print(f"{subject_name} already completed for {num_samples * num_timesteps} samples.")
+                return
+            print(f"Continuing from image #: {new_number}")
 
     os.makedirs(os.path.join(output_dir, subject_name), exist_ok=True)
 
@@ -267,6 +275,7 @@ def main():
     parser.add_argument('--height', type=int, default=576, help='Height of the output image')
     parser.add_argument('--skip_existing', action='store_true', help='Skip existing output directories')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of samples to generate per subject')
+    parser.add_argument('--step_size', type=int, default=10, help='Step size for frames to process.')
     args = parser.parse_args()
 
     # Check arguments
@@ -312,7 +321,7 @@ def main():
         'width': args.width,
         'height': args.height,
         'output_dir': args.output_dir,
-        'num_samples': args.num_samples
+        'num_samples': args.num_samples,
     }
 
     # Generate images for all subjects # ! - DEPRECATED
@@ -326,7 +335,7 @@ def main():
     print(f"Pod {pod_id} assigned subjects {assigned_subjects[:5]}...")
 
     for subject in tqdm(assigned_subjects, desc="Processing subjects", total=len(assigned_subjects)):
-        process_subject(os.path.join(args.root_dir, subject), **kwargs)
+        process_subject(os.path.join(args.root_dir, subject), step_size=args.step_size, **kwargs)
 
     print(f"[InfiniteYou] Pod {pod_id} completed generations!")
 
