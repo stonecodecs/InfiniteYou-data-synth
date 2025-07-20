@@ -4,7 +4,7 @@ python generate.py \
 --output_dir /workspace/datasetvol/mvhuman_data/inconsistent_images \
 --num_steps 25 \
 --quantize_8bit \
---num_samples 1 \
+--num_samples 48 \
 --guidance_scale 3.5 \
 --infusenet_guidance_start 0.0 \
 --infusenet_conditioning_scale 1.0 \
@@ -14,5 +14,5 @@ python generate.py \
 --step_size 20 \
 --enable_realism_lora
 
-# num_samples is how many PER TIMESTEP
+# num_samples is how many PER TIMESTEP (this should be 48 for the number of cameras)
 # STEP SIZE is the interval of timesteps to skip.
