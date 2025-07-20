@@ -137,7 +137,7 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
     #     process_single_image(pipe, image_file, prompt_sampler, **kwargs)
 
     seed = kwargs.get('seed', 0)
-    step_size = kwargs.get('step_size', 1)
+    step_size = kwargs.get('step_size', 20)
     try: 
         image_path = get_representative_image(subject_dir)
     except Exception as e:
@@ -148,6 +148,9 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
     # not sure if this guarantees timestep order, but actually might not matter.
     num_timesteps = len(os.listdir(os.path.dirname(image_path))) // step_size
     num_generations = num_samples * num_timesteps
+
+    # ! hack, but process_single_image doesn't allow the kwarg key "step_size"
+    kwargs.pop('step_size', None)
     
     # get prompts
     prompts = prompt_sampler.sample_prompt(num_samples=num_generations)
@@ -275,7 +278,7 @@ def main():
     parser.add_argument('--height', type=int, default=576, help='Height of the output image')
     parser.add_argument('--skip_existing', action='store_true', help='Skip existing output directories')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of samples to generate per subject')
-    parser.add_argument('--step_size', type=int, default=10, help='Step size for frames to process.')
+    parser.add_argument('--step_size', type=int, default=20, help='Step size for frames to process.')
     args = parser.parse_args()
 
     # Check arguments
@@ -322,6 +325,7 @@ def main():
         'height': args.height,
         'output_dir': args.output_dir,
         'num_samples': args.num_samples,
+        'step_size': args.step_size,
     }
 
     # Generate images for all subjects # ! - DEPRECATED
@@ -335,7 +339,7 @@ def main():
     print(f"Pod {pod_id} assigned subjects {assigned_subjects[:5]}...")
 
     for subject in tqdm(assigned_subjects, desc="Processing subjects", total=len(assigned_subjects)):
-        process_subject(os.path.join(args.root_dir, subject), step_size=args.step_size, **kwargs)
+        process_subject(os.path.join(args.root_dir, subject), **kwargs)
 
     print(f"[InfiniteYou] Pod {pod_id} completed generations!")
 
