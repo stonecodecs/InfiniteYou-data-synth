@@ -11,7 +11,7 @@ python generate.py \
 --model_version sim_stage1 \
 --width 576 \
 --height 576 \
---step_size 20 \
+--step_size 60 \
 --enable_realism_lora
 
 # num_samples is how many PER TIMESTEP (this should be 48 for the number of cameras)

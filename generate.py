@@ -84,7 +84,7 @@ def enhance_prompt(prompt, subject_prompt):
     if "person" in prompt.lower():
         prompt = prompt.replace("person", gender)
     else: # in prompts, if not Person, then it starts with a verb
-        prompt = gender + " " + prompt # then, attach the gender to the prompt
+        prompt = "one " + gender + " " + prompt # then, attach the gender to the prompt
     return prompt
 
 # if the output directory already exists with the desired number of samples, skip it.
@@ -189,6 +189,7 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
 
     # generate images
     no_faces = False
+    rep_image_path = None # only check once
     for i, prompt in tqdm(enumerate(prompts), desc="Generating images", total=num_generations):
         image = None
         retry_count = 0 # for face rec
@@ -203,8 +204,11 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
         # if can't find a face, iterate 10 more images, otherwise, break
         while image is None:
             try:
-                image_path = get_representative_image(subject_dir, start_index=(retry_count+1) * 5)
+                if rep_image_path is None:
+                    image_path = get_representative_image(subject_dir, start_index=retry_count * 5)
                 image, time_elapsed, error = process_single_image(pipe, image_path, prompt, **kwargs)
+                if image is not None: # if we found a face, stop checking for representative images
+                    rep_image_path = image_path
                 retry_count += 1
             except Exception as e:
                 print(e)
