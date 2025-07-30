@@ -78,6 +78,15 @@ def stopwatch(func):
         return result
     return wrapper
 
+def enhance_prompt(prompt, subject_prompt):
+    """Enhance prompt with subject name and prompt json."""
+    gender = subject_prompt.split(" ")[1] # apparently, this is always man, woman, or lady
+    if "person" in prompt.lower():
+        prompt = prompt.replace("person", gender)
+    else: # in prompts, if not Person, then it starts with a verb
+        prompt = gender + " " + prompt # then, attach the gender to the prompt
+    return prompt
+
 # if the output directory already exists with the desired number of samples, skip it.
 def apply_over_all_subdirectories(root_dir, func, skip_existing=True, **kwargs):
     # root dir is mvhumandata/mv_captures here
@@ -85,21 +94,21 @@ def apply_over_all_subdirectories(root_dir, func, skip_existing=True, **kwargs):
         if os.path.isdir(os.path.join(root_dir, subject)):
             func(os.path.join(root_dir, subject), **kwargs) # this calls the subjects
     
-def get_representative_image(subject_dir, front_camera='CC32871A059'):
+def get_representative_image(subject_dir, front_camera='CC32871A059', start_index=5):
     """Get the most front-facing image from a subject directory."""
     images_dir = os.path.join(subject_dir, 'images_lr')
     front_camera_dir = os.path.join(images_dir, front_camera)
     if os.path.exists(front_camera_dir):
         try:
             # get the first timestep image available
-            index = 5
+            index = start_index
             filename = f"{index:04d}_img.jpg"
             img_path = os.path.join(front_camera_dir, filename)
             while not os.path.exists(img_path): # ! hack, but avoids infinite loop
                 index += 5
                 filename = f"{index:04d}_img.jpg"
                 img_path = os.path.join(front_camera_dir, filename)
-                if index > 50: # if not found in first 10 images, this directory is probably empty.
+                if index > 50: # if not found in first 10 images, this directory is probably empty and/or can't find face.
                     raise ValueError(f"No image found for {subject_dir}. Tried for 10 indices.")
             return img_path
         except Exception as e:
@@ -120,13 +129,18 @@ def get_image_files(subject_dir, extensions=['*.jpg', '*.jpeg', '*.png']):
             image_files.extend(glob.glob(os.path.join(images_dir, camera_dir, ext.upper())))
     return sorted(image_files)
 
+def load_prompt_json(prompt_json_file):
+    """Load prompt json from a .json file."""
+    with open(prompt_json_file, 'r') as f:
+        return json.load(f)
+
 def init_prompt_sampler(prompt_file):
     """Load prompts from a .txt file (one prompt per line)."""
     if not os.path.exists(prompt_file):
         raise FileNotFoundError(f"Prompt file {prompt_file} not found")
     return PromptSampler(prompt_file)
 
-def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=1,**kwargs):
+def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=1, subject_prompt=None, **kwargs):
     """Process a subject directory."""
     # NOTE: because InfiniteYou expects faces, we will be using the most front-facing image.
     #       This refers to the first image of camera CC32871A059.
@@ -174,14 +188,30 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
     os.makedirs(os.path.join(output_dir, subject_name), exist_ok=True)
 
     # generate images
+    no_faces = False
     for i, prompt in tqdm(enumerate(prompts), desc="Generating images", total=num_generations):
+        image = None
+        retry_count = 0 # for face rec
         seed = torch.seed() & 0xFFFFFFFF if seed == 0 else seed + i
         kwargs.update({"seed": seed})
         output_path = os.path.join(output_dir, subject_name, f"{(new_number+i):06d}_{subject_name}_img.png")
-    
+        if subject_prompt is not None:
+            prompt = enhance_prompt(prompt, subject_prompt) # update prompt
         print(f"[{i}] Prompt: ", prompt)
         # generate and save
-        image, time_elapsed, error = process_single_image(pipe, image_path, prompt, **kwargs)
+
+        # if can't find a face, iterate 10 more images, otherwise, break
+        while image is None:
+            try:
+                image_path = get_representative_image(subject_dir, start_index=(retry_count+1) * 5)
+                image, time_elapsed, error = process_single_image(pipe, image_path, prompt, **kwargs)
+                retry_count += 1
+            except Exception as e:
+                print(e)
+                no_faces = True
+
+        if no_faces:
+            break # go next subject
         
         # Clear GPU memory between images
         torch.cuda.empty_cache()
@@ -279,6 +309,7 @@ def main():
     parser.add_argument('--skip_existing', action='store_true', help='Skip existing output directories')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of samples to generate per subject')
     parser.add_argument('--step_size', type=int, default=20, help='Step size for frames to process.')
+    parser.add_argument('--prompt_json', type=str,default="/workspace/datasetvol/mvhuman_data/text_description_48.json", help='Prompt json file')
     args = parser.parse_args()
 
     # Check arguments
@@ -291,6 +322,7 @@ def main():
     # Load prompts from file
     try:
         prompt_sampler = init_prompt_sampler(args.prompt_file)
+        prompt_json = load_prompt_json(args.prompt_json)
         print(f"Loaded prompts from {args.prompt_file}")
     except Exception as e:
         print(f"Error loading prompts: {e}")
@@ -340,6 +372,7 @@ def main():
 
     for subject in tqdm(assigned_subjects, desc="Processing subjects", total=len(assigned_subjects)):
         kwargs.update({'step_size': args.step_size}) # another hack to include step_size in kwargs (after popping within process_subject)
+        kwargs.update({'subject_prompt': prompt_json[subject]})
         process_subject(os.path.join(args.root_dir, subject), **kwargs)
 
     print(f"[InfiniteYou] Pod {pod_id} completed generations!")
