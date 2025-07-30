@@ -81,11 +81,12 @@ def stopwatch(func):
 def enhance_prompt(prompt, subject_prompt):
     """Enhance prompt with subject name and prompt json."""
     gender = subject_prompt.split(" ")[1] # apparently, this is always man, woman, or lady
-    if "person" in prompt.lower():
-        prompt = prompt.replace("person", gender)
+    prompt = prompt.lower()
+    if "person" in prompt:
+        new_prompt = prompt.replace("person", "one " + gender)
     else: # in prompts, if not Person, then it starts with a verb
-        prompt = "one " + gender + " " + prompt # then, attach the gender to the prompt
-    return prompt
+        new_prompt = "one " + gender + " " + prompt # then, attach the gender to the prompt
+    return new_prompt
 
 # if the output directory already exists with the desired number of samples, skip it.
 def apply_over_all_subdirectories(root_dir, func, skip_existing=True, **kwargs):
@@ -140,7 +141,7 @@ def init_prompt_sampler(prompt_file):
         raise FileNotFoundError(f"Prompt file {prompt_file} not found")
     return PromptSampler(prompt_file)
 
-def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=1, subject_prompt=None, **kwargs):
+def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=60, subject_prompt=None, **kwargs):
     """Process a subject directory."""
     # NOTE: because InfiniteYou expects faces, we will be using the most front-facing image.
     #       This refers to the first image of camera CC32871A059.
@@ -151,7 +152,7 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
     #     process_single_image(pipe, image_file, prompt_sampler, **kwargs)
 
     seed = kwargs.get('seed', 0)
-    step_size = kwargs.get('step_size', 20)
+    step_size = kwargs.get('step_size', 60)
     try: 
         image_path = get_representative_image(subject_dir)
     except Exception as e:
@@ -312,7 +313,7 @@ def main():
     parser.add_argument('--height', type=int, default=576, help='Height of the output image')
     parser.add_argument('--skip_existing', action='store_true', help='Skip existing output directories')
     parser.add_argument('--num_samples', type=int, default=1000, help='Number of samples to generate per subject')
-    parser.add_argument('--step_size', type=int, default=20, help='Step size for frames to process.')
+    parser.add_argument('--step_size', type=int, default=60, help='Step size for frames to process.')
     parser.add_argument('--prompt_json', type=str,default="/workspace/datasetvol/mvhuman_data/text_description_48.json", help='Prompt json file')
     args = parser.parse_args()
 
