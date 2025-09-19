@@ -376,8 +376,9 @@ def main():
     print(f"Pod {pod_id} assigned subjects {assigned_subjects[:5]}...")
 
     for subject in tqdm(assigned_subjects, desc="Processing subjects", total=len(assigned_subjects)):
+        prompt_for_subject = prompt_json[subject] if subject in prompt_json else None
         kwargs.update({'step_size': args.step_size}) # another hack to include step_size in kwargs (after popping within process_subject)
-        kwargs.update({'subject_prompt': prompt_json[subject]})
+        kwargs.update({'subject_prompt': prompt_for_subject})
         process_subject(os.path.join(args.root_dir, subject), **kwargs)
 
     print(f"[InfiniteYou] Pod {pod_id} completed generations!")
