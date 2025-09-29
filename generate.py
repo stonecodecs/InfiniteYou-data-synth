@@ -145,7 +145,7 @@ def init_prompt_sampler(prompt_file):
 def get_number_of_original_folder(image_path):
     """This function is to compute the exact number of images before pruning out"""
     default_step_size = 5 # By default, step size is 5
-    image_list = sorted(os.listdir(os.listdir(os.path.dirname(image_path))))
+    image_list = sorted(os.listdir(os.path.dirname(image_path)))
     starting_index = int(image_list[0][:4])
     ending_index = int(image_list[-1][:4])
     num_images = (ending_index - starting_index) // default_step_size + 1
