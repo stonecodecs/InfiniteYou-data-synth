@@ -109,7 +109,8 @@ def get_representative_image(subject_dir, front_camera='CC32871A059', start_inde
                 index += 5
                 filename = f"{index:04d}_img.jpg"
                 img_path = os.path.join(front_camera_dir, filename)
-                if index > 50: # if not found in first 10 images, this directory is probably empty and/or can't find face.
+                # Change maximum value from 50 to 2105 to prevent not returning any image for pruned out objects
+                if index > 2105: # if not found in first 10 images, this directory is probably empty and/or can't find face.
                     raise ValueError(f"No image found for {subject_dir}. Tried for 10 indices.")
             return img_path
         except Exception as e:
@@ -141,6 +142,15 @@ def init_prompt_sampler(prompt_file):
         raise FileNotFoundError(f"Prompt file {prompt_file} not found")
     return PromptSampler(prompt_file)
 
+def get_number_of_original_folder(image_path):
+    """This function is to compute the exact number of images before pruning out"""
+    default_step_size = 5 # By default, step size is 5
+    image_list = sorted(os.listdir(os.listdir(os.path.dirname(image_path))))
+    starting_index = int(image_list[0][:4])
+    ending_index = int(image_list[-1][:4])
+    num_images = (ending_index - starting_index) // default_step_size + 1
+    return num_images
+
 def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1, step_size=60, subject_prompt=None, **kwargs):
     """Process a subject directory."""
     # NOTE: because InfiniteYou expects faces, we will be using the most front-facing image.
@@ -161,7 +171,8 @@ def process_subject(subject_dir, prompt_sampler, pipe, output_dir, num_samples=1
 
     # get number of images within image_path (camera)
     # not sure if this guarantees timestep order, but actually might not matter.
-    num_timesteps = len(os.listdir(os.path.dirname(image_path))) // step_size
+    # Fix return empty synthesis folder
+    num_timesteps = get_number_of_original_folder(image_path) // step_size
     num_generations = num_samples * num_timesteps
 
     # ! hack, but process_single_image doesn't allow the kwarg key "step_size"
